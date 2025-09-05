@@ -7,7 +7,7 @@
   <style>
     :root{--bg:#0f1724;--panel:#071027;--accent:#22c55e;--muted:#94a3b8}
     html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
-    body{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071428 0%, #00121a 100%);color:var(--muted);touch-action:none}
+    body{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071428 0%, #00121a 100%);color:var(--muted);}
     .container{width:100%;max-width:900px;padding:20px;box-sizing:border-box;position:relative}
     .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.1));padding:16px;border-radius:12px;box-shadow:0 6px 30px rgba(2,6,23,0.6);position:relative}
     header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
@@ -131,4 +131,61 @@
         const s=snake[i]; const size=i===0?gridSize*0.95:gridSize*0.85; const color=i===0?'#10b981':'#16a34a';
         drawRect(s.x,s.y,size,color,i===0);
       }
-      if(wallsEnabled){ctx.strokeStyle='#1f2937'; ctx.lineWidth=2; ctx.strokeRect(0,0,cols*gridSize
+      if(wallsEnabled){ctx.strokeStyle='#1f2937'; ctx.lineWidth=2; ctx.strokeRect(0,0,cols*gridSize,rows*gridSize);}
+    }
+
+    function drawRect(cellX,cellY,size,fill,round){
+      const px=cellX*gridSize+(gridSize-size)/2, py=cellY*gridSize+(gridSize-size)/2, r=round?6:4;
+      ctx.fillStyle=fill; roundRect(ctx,px,py,size,size,r,true,false);
+    }
+    function roundRect(ctx,x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath(); if(fill) ctx.fill(); if(stroke) ctx.stroke();}
+
+    function tick(time){
+      if(!running || paused){lastTick=time; requestAnimationFrame(tick); return;}
+      if(time-lastTick>=tickInterval){lastTick=time; step();}
+      draw(); requestAnimationFrame(tick);
+    }
+
+    function step(){
+      dir=nextDir; const head={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
+      if(wrapEnabled){ head.x=(head.x+cols)%cols; head.y=(head.y+rows)%rows;}
+      if(wallsEnabled&&(head.x<0||head.x>=cols||head.y<0||head.y>=rows)){gameOver(); return;}
+      if(snake.some((s,idx)=>idx>0 && s.x===head.x && s.y===head.y)){gameOver(); return;}
+      snake.unshift(head);
+      if(food && head.x===food.x && head.y===food.y){score+=10; if(score>best){best=score;localStorage.setItem('snake_best',best);} tickInterval=Math.max(40,tickInterval-2); placeFood();} else {snake.pop();}
+      updateScore();
+    }
+
+    function gameOver(){running=false; paused=false; alert('게임 오버! 점수: '+score);}
+
+    function changeDirection(x,y){ if((x===-dir.x&&y===-dir.y)||(x===dir.x&&y===dir.y)) return; nextDir={x,y};}
+
+    function startGame(){
+      if(!running){ running=true; paused=false; lastTick=performance.now(); requestAnimationFrame(tick); }
+    }
+
+    document.getElementById('btnStart').addEventListener('click', startGame);
+    document.getElementById('btnPause').addEventListener('click',()=>{if(!running) return; paused=!paused; document.getElementById('btnPause').innerText=paused?'다시시작':'일시정지';});
+    document.getElementById('btnRestart').addEventListener('click',()=>{reset(); startGame();});
+    document.getElementById('toggleWalls').addEventListener('change',e=>{wallsEnabled=e.target.checked;if(wallsEnabled){document.getElementById('toggleWrap').checked=false; wrapEnabled=false;}});
+    document.getElementById('toggleWrap').addEventListener('change',e=>{wrapEnabled=e.target.checked;if(wrapEnabled){document.getElementById('toggleWalls').checked=false; wallsEnabled=false;}});
+
+    // 모바일 터치 버튼
+    const upBtn=document.getElementById('upBtn');
+    const downBtn=document.getElementById('downBtn');
+    const leftBtn=document.getElementById('leftBtn');
+    const rightBtn=document.getElementById('rightBtn');
+
+    function touchMove(x,y){ changeDirection(x,y); startGame(); }
+
+    upBtn.addEventListener('touchstart', e=>{ e.preventDefault(); touchMove(0,-1); });
+    downBtn.addEventListener('touchstart', e=>{ e.preventDefault(); touchMove(0,1); });
+    leftBtn.addEventListener('touchstart', e=>{ e.preventDefault(); touchMove(-1,0); });
+    rightBtn.addEventListener('touchstart', e=>{ e.preventDefault(); touchMove(1,0); });
+
+    function goFullscreen(){document.documentElement.requestFullscreen();}
+
+    reset();
+  </script>
+</body>
+</html>
